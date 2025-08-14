@@ -41,6 +41,82 @@ src/
   index.tsx          # App entry
 ```
 
+## System Architecture & API Flow
+
+### Sequence Diagram: Web Client ↔ Backend Services
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebClient as Car Web Client<br/>(React App)
+    participant ListingService as Car Listing Service<br/>(Port 5033)
+    participant OrderService as Order Service<br/>(Port 5068)
+    participant NotificationService as Notification Service<br/>(Port 5031)
+
+    Note over User,NotificationService: User Authentication Flow
+    User->>WebClient: Login
+    WebClient->>ListingService: POST /auth/login
+    ListingService-->>WebClient: JWT Token
+    WebClient->>WebClient: Store token in localStorage
+
+    Note over User,NotificationService: Browse Car Listings
+    User->>WebClient: View Home Page
+    WebClient->>ListingService: GET /api/cars
+    ListingService-->>WebClient: List of cars
+    WebClient-->>User: Display car listings
+
+    Note over User,NotificationService: View Car Details
+    User->>WebClient: Click on car listing
+    WebClient->>ListingService: GET /api/cars/{id}
+    ListingService-->>WebClient: Car details + images
+    WebClient-->>User: Display car details page
+
+    Note over User,NotificationService: Create/Edit Listing
+    User->>WebClient: Submit car listing form
+    WebClient->>ListingService: POST/PUT /api/cars
+    ListingService-->>WebClient: Success response
+    WebClient-->>User: Show success message
+
+    Note over User,NotificationService: Place Order
+    User->>WebClient: Click "Buy Now" or "Rent"
+    WebClient->>OrderService: POST /api/orders
+    OrderService-->>WebClient: Order confirmation
+    WebClient->>NotificationService: POST /api/notifications
+    NotificationService-->>WebClient: Notification sent
+    WebClient-->>User: Order confirmation page
+
+    Note over User,NotificationService: View Orders
+    User->>WebClient: Navigate to Orders page
+    WebClient->>OrderService: GET /api/orders
+    OrderService-->>WebClient: User's orders
+    WebClient-->>User: Display orders list
+
+    Note over User,NotificationService: View Notifications
+    User->>WebClient: Navigate to Notifications
+    WebClient->>NotificationService: GET /api/notifications
+    NotificationService-->>WebClient: User's notifications
+    WebClient-->>User: Display notifications
+
+    Note over User,NotificationService: Profile Management
+    User->>WebClient: Update profile
+    WebClient->>ListingService: PUT /api/users/profile
+    ListingService-->>WebClient: Updated profile
+    WebClient-->>User: Profile updated message
+```
+
+### Service Responsibilities
+
+- **Car Listing Service (Port 5033)**: Manages car listings, user authentication, and user profiles
+- **Order Service (Port 5068)**: Handles order creation, management, and order history
+- **Notification Service (Port 5031)**: Sends and manages user notifications for orders and system updates
+
+### Data Flow Pattern
+
+1. **Authentication First**: All API calls require valid JWT token from Listing Service
+2. **Service-Specific APIs**: Each service handles its domain-specific operations
+3. **Cross-Service Communication**: Web client orchestrates calls between services as needed
+4. **Fallback to Mock Data**: When services are unavailable, app uses existing mock data flows
+
 ## Environment Variables
 No `.env` is required. If needed later, follow CRA conventions: variables must be prefixed with `REACT_APP_`.
 
