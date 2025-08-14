@@ -185,6 +185,85 @@ sequenceDiagram
    - ❌ User management, orders, notifications use mock data
    - 🔄 Ready for incremental API integration as backend features are completed
 
+### Order Flow Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebClient as Car Web Client
+    participant ListingService as Car Listing Service
+    participant OrderService as Order Service
+    participant NotificationService as Notification Service
+
+    Note over User,NotificationService: 1. User Browses Cars
+    User->>WebClient: View car listings
+    WebClient->>ListingService: GET /Car
+    ListingService-->>WebClient: List of available cars
+    WebClient-->>User: Display car listings
+
+    Note over User,NotificationService: 2. User Selects Car
+    User->>WebClient: Click on car listing
+    WebClient->>ListingService: GET /Car/{id}
+    ListingService-->>WebClient: Car details (price, condition, etc.)
+    WebClient-->>User: Show car details page
+
+    Note over User,NotificationService: 3. User Initiates Purchase
+    User->>WebClient: Click "Buy Now" button
+    Note right of WebClient: Currently uses mock data<br/>TODO: Implement real order flow
+
+    Note over User,NotificationService: 4. Order Creation (Future Implementation)
+    WebClient->>OrderService: POST /Order
+    Note right of OrderService: Order data: carId, buyerId, amount
+    OrderService->>ListingService: Verify car availability
+    ListingService-->>OrderService: Car status confirmation
+    OrderService-->>WebClient: Order created (pending status)
+    
+    Note over User,NotificationService: 5. Notification Creation
+    WebClient->>NotificationService: POST /Notification
+    Note right of NotificationService: Notification: "Order placed successfully"
+    NotificationService-->>WebClient: Notification created
+    
+    Note over User,NotificationService: 6. Order Confirmation
+    WebClient-->>User: Order confirmation page
+    Note right of WebClient: Show order ID, status, and next steps
+
+    Note over User,NotificationService: 7. Order Management (Future)
+    User->>WebClient: View order history
+    WebClient->>OrderService: GET /Order
+    OrderService-->>WebClient: User's orders
+    WebClient-->>User: Display orders list
+
+    Note over User,NotificationService: 8. Order Status Updates
+    User->>WebClient: Check order status
+    WebClient->>OrderService: GET /Order/{id}
+    OrderService-->>WebClient: Current order status
+    WebClient-->>User: Show updated status
+
+    Note over User,NotificationService: 9. Payment Processing (Future)
+    Note right of WebClient: Payment gateway integration<br/>TODO: Implement payment flow
+    WebClient->>OrderService: PUT /Order/{id}/status
+    Note right of OrderService: Update status to "paid"
+    OrderService-->>WebClient: Status updated
+    OrderService->>NotificationService: POST /Notification
+    Note right of NotificationService: "Payment received" notification
+    NotificationService-->>OrderService: Notification created
+    WebClient-->>User: Payment confirmation
+```
+
+### Order Flow States
+
+**Order Status Progression:**
+1. **pending** - Order created, waiting for payment
+2. **paid** - Payment received, order confirmed
+3. **cancelled** - Order cancelled by user or system
+4. **completed** - Order fulfilled and delivered
+
+**Key Integration Points:**
+- **Car Verification**: Order service validates car availability before creating order
+- **Real-time Updates**: Order status changes trigger notifications
+- **Payment Flow**: Future integration with payment gateway
+- **Event Publishing**: RabbitMQ events for order lifecycle (planned)
+
 ## Environment Variables
 No `.env` is required. If needed later, follow CRA conventions: variables must be prefixed with `REACT_APP_`.
 
