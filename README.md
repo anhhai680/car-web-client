@@ -264,6 +264,198 @@ sequenceDiagram
 - **Payment Flow**: Future integration with payment gateway
 - **Event Publishing**: RabbitMQ events for order lifecycle (planned)
 
+### Additional System Flows
+
+#### Search & Filtering Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebClient as Car Web Client
+    participant ListingService as Car Listing Service
+    participant Cache as Browser Cache
+
+    User->>WebClient: Apply search filters
+    WebClient->>Cache: Check cached results
+    alt Cache hit
+        Cache-->>WebClient: Return cached data
+        WebClient-->>User: Display filtered results
+    else Cache miss
+        WebClient->>ListingService: GET /api/cars?filters
+        ListingService-->>WebClient: Filtered car results
+        WebClient->>Cache: Store results
+        WebClient-->>User: Display filtered results
+    end
+```
+
+#### Error Handling & Fallback Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebClient as Car Web Client
+    participant BackendService as Any Backend Service
+    participant MockData as Mock Data Layer
+
+    User->>WebClient: Request data
+    WebClient->>BackendService: API call
+    alt Service available
+        BackendService-->>WebClient: Success response
+        WebClient-->>User: Display real data
+    else Service unavailable
+        BackendService-->>WebClient: Error/timeout
+        WebClient->>MockData: Get mock data
+        MockData-->>WebClient: Mock response
+        WebClient-->>User: Display mock data + warning
+    end
+```
+
+#### Real-time Updates Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebClient as Car Web Client
+    participant NotificationService as Notification Service
+    participant ListingService as Car Listing Service
+    participant OrderService as Order Service
+
+    Note over User,OrderService: WebSocket Connection
+    WebClient->>NotificationService: Connect WebSocket
+    NotificationService-->>WebClient: Connection established
+
+    Note over User,OrderService: Real-time Updates
+    loop Continuous updates
+        NotificationService->>WebClient: New notification
+        WebClient->>WebClient: Update notification count
+        WebClient-->>User: Show notification badge
+        
+        alt Order status change
+            NotificationService->>WebClient: Order update
+            WebClient->>OrderService: GET /api/orders/{id}
+            OrderService-->>WebClient: Updated order
+            WebClient-->>User: Update order display
+        end
+        
+        alt Listing change
+            NotificationService->>WebClient: Listing update
+            WebClient->>ListingService: GET /api/cars/{id}
+            ListingService-->>WebClient: Updated listing
+            WebClient-->>User: Update listing display
+        end
+    end
+```
+
+#### User Session Management Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebClient as Car Web Client
+    participant ListingService as Car Listing Service
+    participant LocalStorage as Browser Storage
+
+    Note over User,LocalStorage: Session Initialization
+    User->>WebClient: Open app
+    WebClient->>LocalStorage: Check existing token
+    alt Valid token exists
+        LocalStorage-->>WebClient: Return stored token
+        WebClient->>ListingService: Validate token
+        ListingService-->>WebClient: Token valid
+        WebClient->>WebClient: Auto-login user
+        WebClient-->>User: Show authenticated state
+    else No token or expired
+        WebClient-->>User: Show login form
+    end
+
+    Note over User,LocalStorage: Session Maintenance
+    loop Every 5 minutes
+        WebClient->>ListingService: Refresh token
+        ListingService-->>WebClient: New token
+        WebClient->>LocalStorage: Update stored token
+    end
+
+    Note over User,LocalStorage: Session Cleanup
+    User->>WebClient: Logout
+    WebClient->>LocalStorage: Clear stored data
+    WebClient->>WebClient: Reset app state
+    WebClient-->>User: Show login form
+```
+
+#### Data Synchronization Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebClient as Car Web Client
+    participant ListingService as Car Listing Service
+    participant OrderService as Order Service
+    participant NotificationService as Notification Service
+    participant LocalDB as IndexedDB
+
+    Note over User,LocalDB: Initial Data Sync
+    User->>WebClient: First app load
+    WebClient->>ListingService: GET /api/cars
+    ListingService-->>WebClient: Car listings
+    WebClient->>LocalDB: Store listings
+    
+    WebClient->>OrderService: GET /api/orders
+    OrderService-->>WebClient: User orders
+    WebClient->>LocalDB: Store orders
+    
+    WebClient->>NotificationService: GET /api/notifications
+    NotificationService-->>WebClient: User notifications
+    WebClient->>LocalDB: Store notifications
+
+    Note over User,LocalDB: Offline Support
+    alt User offline
+        WebClient->>LocalDB: Get cached data
+        LocalDB-->>WebClient: Stored data
+        WebClient-->>User: Display cached data
+        WebClient->>WebClient: Queue API calls
+    else User online
+        WebClient->>WebClient: Process queued calls
+        WebClient->>BackendService: Sync pending changes
+        BackendService-->>WebClient: Sync confirmation
+        WebClient->>LocalDB: Update local data
+    end
+```
+
+#### Car Listing Management Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebClient as Car Web Client
+    participant ListingService as Car Listing Service
+    participant ImageService as Image Storage Service
+
+    Note over User,ImageService: Create New Listing
+    User->>WebClient: Fill listing form
+    WebClient->>ImageService: Upload car images
+    ImageService-->>WebClient: Image URLs
+    WebClient->>ListingService: POST /api/cars
+    Note right of ListingService: Include image URLs, car details
+    ListingService-->>WebClient: Listing created
+    WebClient-->>User: Success message
+
+    Note over User,ImageService: Edit Existing Listing
+    User->>WebClient: Modify listing
+    alt Images changed
+        WebClient->>ImageService: Upload new images
+        ImageService-->>WebClient: New image URLs
+        WebClient->>ListingService: PUT /api/cars/{id}
+        Note right of ListingService: Update with new images
+    else No image changes
+        WebClient->>ListingService: PUT /api/cars/{id}
+        Note right of ListingService: Update car details only
+    end
+    ListingService-->>WebClient: Listing updated
+    WebClient-->>User: Update confirmation
+
+    Note over User,ImageService: Delete Listing
+    User->>WebClient: Delete listing
+    WebClient->>ListingService: DELETE /api/cars/{id}
+    ListingService->>ImageService: Delete associated images
+    ImageService-->>ListingService: Images deleted
+    ListingService-->>WebClient: Listing deleted
+    WebClient-->>User: Deletion confirmation
+```
+
 ## Environment Variables
 No `.env` is required. If needed later, follow CRA conventions: variables must be prefixed with `REACT_APP_`.
 
